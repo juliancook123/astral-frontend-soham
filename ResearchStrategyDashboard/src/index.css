@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Astral Trading Dashboard Design System */
+
+@layer base {
+  :root {
+    /* Core Trading Dashboard Colors */
+    --background: 225 15% 8%;              /* Deep navy background */
+    --foreground: 210 20% 95%;             /* Light text */
+    
+    /* Card surfaces with subtle transparency */
+    --card: 225 15% 10%;                   /* Slightly lighter cards */
+    --card-foreground: 210 20% 95%;
+    
+    --popover: 225 15% 12%;
+    --popover-foreground: 210 20% 95%;
+    
+    /* Brand colors - Astral blue theme */
+    --primary: 217 91% 60%;                /* Bright blue accent */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 217 91% 70%;           /* Lighter blue for glows */
+    
+    --secondary: 225 15% 15%;              /* Subtle surface */
+    --secondary-foreground: 210 15% 85%;
+    
+    --muted: 225 10% 18%;                  /* Muted backgrounds */
+    --muted-foreground: 210 10% 65%;
+    
+    --accent: 217 91% 60%;                 /* Same as primary for consistency */
+    --accent-foreground: 0 0% 100%;
+    
+    /* Trading specific colors */
+    --success: 142 76% 36%;                /* Green for profits/buy */
+    --success-foreground: 0 0% 100%;
+    --danger: 0 84% 60%;                   /* Red for losses/sell */
+    --danger-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* UI elements */
+    --border: 225 15% 20%;                 /* Subtle borders */
+    --input: 225 15% 15%;                  /* Input backgrounds */
+    --ring: 217 91% 60%;                   /* Focus rings */
+    
+    --radius: 0.75rem;                     /* Slightly more rounded */
+    
+    /* Sidebar colors */
+    --sidebar-background: 225 15% 6%;      /* Darker sidebar */
+    --sidebar-foreground: 210 15% 80%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 225 15% 12%;
+    --sidebar-accent-foreground: 210 15% 80%;
+    --sidebar-border: 225 15% 18%;
+    --sidebar-ring: 217 91% 60%;
+    
+    /* Chart and data visualization */
+    --chart-grid: 225 15% 20%;
+    --chart-line: 217 91% 60%;
+    --chart-positive: 142 76% 36%;
+    --chart-negative: 0 84% 60%;
+    
+    /* Gradients for modern effects */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 70%) 100%);
+    --gradient-surface: linear-gradient(135deg, hsl(225 15% 10%) 0%, hsl(225 15% 12%) 100%);
+    --gradient-glow: radial-gradient(circle at center, hsl(217 91% 60% / 0.3) 0%, transparent 70%);
+    
+    /* Shadows for depth */
+    --shadow-sm: 0 2px 4px hsl(225 15% 5% / 0.3);
+    --shadow-md: 0 4px 12px hsl(225 15% 5% / 0.4);
+    --shadow-lg: 0 8px 24px hsl(225 15% 5% / 0.5);
+    --shadow-glow: 0 0 24px hsl(217 91% 60% / 0.3);
+  }
+  
+  .dark {
+    /* Dark mode is the default for trading dashboard */
+    --background: 225 15% 8%;
+    --foreground: 210 20% 95%;
+    --card: 225 15% 10%;
+    --card-foreground: 210 20% 95%;
+    --popover: 225 15% 12%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 15% 15%;
+    --secondary-foreground: 210 15% 85%;
+    --muted: 225 10% 18%;
+    --muted-foreground: 210 10% 65%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 225 15% 20%;
+    --input: 225 15% 15%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ===== Scrollbar that blends with background ===== */
+
+/* Use CSS variables so this respects your theme colors */
+:root {
+  --scroll-track: hsl(var(--background));
+  --scroll-thumb: hsl(var(--background)); /* same as track to blend */
+}
+
+/* Firefox (page + elements) */
+html, body, .chat-scroll {
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  scrollbar-width: thin; /* still scrollable, but subtle */
+}
+
+/* WebKit (Chrome, Edge, Safari) - page scrollbar */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 10px;
+}
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background-color: var(--scroll-thumb);
+  border-radius: 9999px;
+  border: 2px solid var(--scroll-track);
+}
+
+/* WebKit - the inner chat list scroller */
+.chat-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--scroll-thumb);
+  border-radius: 9999px;
+  border: 2px solid var(--scroll-track);
+}
