@@ -44,7 +44,7 @@ export function TradingLayout({ children }: TradingLayoutProps) {
           </header>
 
           {/* Main Content Area */}
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-6">
             {children}
           </main>
         </div>

@@ -12,6 +12,7 @@ import Activity from "./pages/Activity";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import { WebSocketProvider } from "@/context/WebSocketProvider";
 
 const queryClient = new QueryClient();
 
@@ -21,21 +22,23 @@ const App = () => (
       <div className="dark">
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <TradingLayout>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/research" element={<Research />} />
-              <Route path="/strategy" element={<Strategy />} />
-              <Route path="/portfolio" element={<Portfolio />} />
-              <Route path="/activity" element={<Activity />} />
-              
-              <Route path="/settings" element={<Settings />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </TradingLayout>
-        </BrowserRouter>
+        <WebSocketProvider>
+          <BrowserRouter>
+            <TradingLayout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/research" element={<Research />} />
+                <Route path="/strategy" element={<Strategy />} />
+                <Route path="/portfolio" element={<Portfolio />} />
+                <Route path="/activity" element={<Activity />} />
+                
+                <Route path="/settings" element={<Settings />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </TradingLayout>
+          </BrowserRouter>
+        </WebSocketProvider>
       </div>
     </TooltipProvider>
   </QueryClientProvider>
