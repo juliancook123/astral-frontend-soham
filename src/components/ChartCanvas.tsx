@@ -6,6 +6,7 @@ import {
   type CandlestickData,
   type IChartApi,
   type ISeriesApi,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,22 +31,51 @@ const timeframeToSeconds = (timeframe: string): number => {
   }
 }
 
-const formatTimestamp = (timestamp?: UTCTimestamp) => {
-  if (!timestamp) return "—"
-  const date = new Date(Number(timestamp) * 1000)
-  if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleTimeString()
-}
-
 export default function ChartCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
   const latestTimestampRef = useRef<UTCTimestamp | null>(null)
+  const firstTimestampRef = useRef<UTCTimestamp | null>(null)
+  const candleCountRef = useRef(0)
   const [didFit, setDidFit] = useState(false)
 
   const { status } = useWebSocket()
   const { candles, meta, latest } = useStreamCandles()
+
+  const { formatTimestampLabel, formatAxisTime } = useMemo(() => {
+    const axisFormatter = new Intl.DateTimeFormat(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+    const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+
+    const formatTimestampLabel = (timestamp?: UTCTimestamp) => {
+      if (!timestamp) return "—"
+      const date = new Date(Number(timestamp) * 1000)
+      if (Number.isNaN(date.getTime())) return "—"
+      return dateTimeFormatter.format(date)
+    }
+
+    const formatAxisTime = (time: Time) => {
+      if (typeof time === "number") {
+        return axisFormatter.format(new Date(time * 1000))
+      }
+      const { year, month, day } = time
+      const date = new Date(Date.UTC(year, month - 1, day))
+      return dateTimeFormatter.format(date)
+    }
+
+    return { formatTimestampLabel, formatAxisTime }
+  }, [])
 
   const chartOptions = useMemo(
     () => ({
@@ -68,8 +98,11 @@ export default function ChartCanvas() {
       crosshair: {
         mode: 1,
       },
+      localization: {
+        timeFormatter: formatAxisTime,
+      },
     }),
-    []
+    [formatAxisTime],
   )
 
   useEffect(() => {
@@ -120,23 +153,42 @@ export default function ChartCanvas() {
     if (!candles.length) {
       seriesRef.current.setData([])
       latestTimestampRef.current = null
+      firstTimestampRef.current = null
+      candleCountRef.current = 0
       setDidFit(false)
       return
     }
 
     const latestCandle = candles[candles.length - 1]
+    const firstCandle = candles[0]
     const latestTimestamp = latestCandle.time as UTCTimestamp
+    const firstTimestamp = firstCandle.time as UTCTimestamp
 
-    if (latestTimestampRef.current && latestTimestamp === latestTimestampRef.current) {
-      // same candle, update in place
-      seriesRef.current.update(latestCandle)
-    } else {
+    const previousCount = candleCountRef.current
+    const previousFirst = firstTimestampRef.current
+    const previousLatest = latestTimestampRef.current
+
+    const countChanged = previousCount !== candles.length
+    const firstChanged = previousFirst !== firstTimestamp
+    const needsFullRefresh = previousCount === 0 || countChanged || firstChanged
+
+    let shouldFit = false
+
+    if (needsFullRefresh) {
       seriesRef.current.setData(candles)
-      latestTimestampRef.current = latestTimestamp
-      setDidFit(false)
+      shouldFit = true
+    } else {
+      seriesRef.current.update(latestCandle)
+      if (previousLatest !== latestTimestamp) {
+        shouldFit = true
+      }
     }
 
-    if (!didFit) {
+    candleCountRef.current = candles.length
+    firstTimestampRef.current = firstTimestamp
+    latestTimestampRef.current = latestTimestamp
+
+    if (shouldFit || !didFit) {
       chartRef.current?.timeScale().fitContent()
       setDidFit(true)
     }
@@ -161,7 +213,7 @@ export default function ChartCanvas() {
           </Badge>
           {meta ? (
             <span>
-              {meta.symbol} · {meta.timeframe} · {formatTimestamp(latest?.time)}
+              {meta.symbol} · {meta.timeframe} · {formatTimestampLabel(latest?.time)}
             </span>
           ) : (
             <span>No active stream</span>

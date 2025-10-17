@@ -37,7 +37,36 @@ type BarClose = {
   volume?: number
 }
 
-type IncomingFrame = StartStreamAck | PartialBar | BarClose | Record<string, unknown>
+type BacklogBar = {
+  bar_time: string
+  open: number
+  high: number
+  low: number
+  close?: number
+  volume?: number
+}
+
+type BacklogBars = {
+  t: "backlog_bars"
+  v?: number
+  user_id?: string
+  run_id?: string
+  session_id?: string
+  asof?: string
+  symbol: string
+  tf: string
+  range?: {
+    start?: string
+    end?: string
+  }
+  batch_index?: number
+  batch_total?: number
+  bar_count?: number
+  is_last_backlog?: boolean
+  bars: BacklogBar[]
+}
+
+type IncomingFrame = StartStreamAck | PartialBar | BarClose | BacklogBars | Record<string, unknown>
 
 export type StreamMeta = {
   symbol: string
@@ -52,6 +81,12 @@ type StreamState = {
 }
 
 const SESSION_ID = "session-local"
+
+const normalizeSymbol = (value: string): string =>
+  typeof value === "string" ? value.trim().toUpperCase() : ""
+
+const normalizeTimeframe = (value: string): string =>
+  typeof value === "string" ? value.trim().toLowerCase() : ""
 
 const timeframeToSeconds = (timeframe: string): number => {
   const match = timeframe.match(/^(\d+)([mhd])$/i)
@@ -72,7 +107,7 @@ const timeframeToSeconds = (timeframe: string): number => {
 
 const toTimestamp = (iso: string): UTCTimestamp => (Math.floor(new Date(iso).getTime() / 1000) as UTCTimestamp)
 
-const toCandle = (frame: PartialBar | BarClose): CandlestickData => {
+const toCandle = (frame: PartialBar | BarClose | BacklogBar): CandlestickData => {
   const time = toTimestamp(frame.bar_time)
   const open = Number(frame.open)
   const high = Number(frame.high)
@@ -80,9 +115,11 @@ const toCandle = (frame: PartialBar | BarClose): CandlestickData => {
   const close =
     typeof (frame as BarClose).close === "number"
       ? Number((frame as BarClose).close)
-      : typeof frame.last === "number"
-      ? Number(frame.last)
-      : Number(frame.close ?? frame.open)
+      : typeof (frame as PartialBar).last === "number"
+      ? Number((frame as PartialBar).last)
+      : typeof frame.close === "number"
+      ? Number(frame.close)
+      : Number(frame.open)
   return { time, open, high, low, close }
 }
 
@@ -104,23 +141,41 @@ export function useStreamCandles() {
       if (!frame || typeof frame !== "object" || !("t" in frame)) return
 
       if (frame.t === "start_stream_ack" && frame.session_id === SESSION_ID) {
-        dataMapRef.current = new Map()
-        partialRef.current = null
+        const symbol = normalizeSymbol(frame.symbol)
+        const timeframe = normalizeTimeframe(frame.tf)
+        const sessionId = frame.session_id
+        const active = metaRef.current
+        const sameSymbol = active?.symbol === symbol
+        const sameTimeframe = active?.timeframe === timeframe
+        const sameSession = active?.sessionId === sessionId
+        const isNewStream = !sameSymbol || !sameTimeframe
+        const shouldReset = isNewStream || (dataMapRef.current.size === 0 && !sameSession)
+
+        if (shouldReset) {
+          dataMapRef.current = new Map()
+          partialRef.current = null
+        }
+
         const meta: StreamMeta = {
-          symbol: frame.symbol,
-          timeframe: frame.tf,
-          sessionId: frame.session_id,
+          symbol,
+          timeframe,
+          sessionId,
           lastUpdated: new Date().toISOString(),
         }
         metaRef.current = meta
-        setState({ meta, candles: [] })
+        setState({
+          meta,
+          candles: Array.from(dataMapRef.current.values()).sort((a, b) => Number(a.time) - Number(b.time)),
+        })
         return
       }
 
       if (frame.t === "partial_bar") {
         const active = metaRef.current
         if (!active) return
-        if (frame.symbol !== active.symbol || frame.tf !== active.timeframe) return
+        const symbol = normalizeSymbol(frame.symbol)
+        const timeframe = normalizeTimeframe(frame.tf)
+        if (symbol !== active.symbol || timeframe !== active.timeframe) return
 
         partialRef.current = frame
         const candle = toCandle(frame)
@@ -139,7 +194,9 @@ export function useStreamCandles() {
       if (frame.t === "bar_close") {
         const active = metaRef.current
         if (!active) return
-        if (frame.symbol !== active.symbol || frame.tf !== active.timeframe) return
+        const symbol = normalizeSymbol(frame.symbol)
+        const timeframe = normalizeTimeframe(frame.tf)
+        if (symbol !== active.symbol || timeframe !== active.timeframe) return
 
         const candle = toCandle(frame)
         mergeCandles(dataMapRef.current, candle)
@@ -173,6 +230,44 @@ export function useStreamCandles() {
           },
           candles: Array.from(dataMapRef.current.values()).sort((a, b) => Number(a.time) - Number(b.time)),
         })
+        return
+      }
+
+      if (frame.t === "backlog_bars") {
+        if (!Array.isArray(frame.bars) || frame.bars.length === 0) return
+
+        const active = metaRef.current
+        const symbol = normalizeSymbol(frame.symbol)
+        const timeframe = normalizeTimeframe(frame.tf)
+        const sessionId = frame.session_id ?? active?.sessionId ?? SESSION_ID
+        const sameSymbol = active?.symbol === symbol
+        const sameTimeframe = active?.timeframe === timeframe
+        const sameSession = active?.sessionId === sessionId
+        const shouldReset = !sameSymbol || !sameTimeframe || (!sameSession && typeof frame.session_id === "string")
+
+        if (shouldReset) {
+          dataMapRef.current = new Map()
+          partialRef.current = null
+        }
+
+        const meta: StreamMeta = {
+          symbol,
+          timeframe,
+          sessionId,
+          lastUpdated: frame.asof ?? new Date().toISOString(),
+        }
+        metaRef.current = meta
+
+        frame.bars.forEach((bar) => {
+          const candle = toCandle(bar)
+          mergeCandles(dataMapRef.current, candle)
+        })
+
+        setState({
+          meta,
+          candles: Array.from(dataMapRef.current.values()).sort((a, b) => Number(a.time) - Number(b.time)),
+        })
+        return
       }
     })
 
