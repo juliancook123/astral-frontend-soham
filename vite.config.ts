@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { runStrategyAgentRequest } from "./server/strategyAgent";
+import { runStrategyAgentRequest } from "./server/strategyAgent.js";
 
 const strategyAgentProxy = (apiKey?: string) => ({
   name: "strategy-agent-proxy",
